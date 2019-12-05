@@ -306,6 +306,8 @@
 %% should do the actual work / setting for that particular optionvalue.
 
 \newcommand{\baposterPosterDrawBackground}[2]{} % Draw poster background
+\newcommand{\baposterPosterDrawTitleBackground}[1]{} % Draw title background
+\newcommand{\baposterPosterDrawFooterBackground}[1]{} % Draw title background
 
 \newcommand{\baposterBoxGetShape}{}             % Returns path of text box shape
 \newcommand{\baposterBoxDrawBackground}[2]{}    % Draw bg of boxes
@@ -345,6 +347,8 @@
 \define@cmdkey [ba]{poster}[baposter@]{colspacing}           [1em]         {}
 \define@cmdkey [ba]{poster}[baposter@]{bgColorOne}           [baposter@silver]{}
 \define@cmdkey [ba]{poster}[baposter@]{bgColorTwo}           [green]       {}
+\define@cmdkey [ba]{poster}[baposter@]{titleColor}           [green]       {}
+\define@cmdkey [ba]{poster}[baposter@]{footerColor}          [green]       {}
 
 % background can be one of: shadeLR, shadeTB, plain, user, none
 \define@choicekey*+[ba]{poster}{background}%
@@ -358,6 +362,40 @@
       shadeLR, shadeTB, plain, none, or user). If user is used, you also
       have to define \background{...}.}
   \renewcommand{\baposterPosterDrawBackground}[2]{\baposter@background@none{##1}{##2}}
+}
+
+% titlebackground can be one of: plain, none
+\define@choicekey*+[ba]{poster}{titlebackground}%
+    [\baposter@titlebackground\baposter@titlebackgroundnr]%
+    {plain, none} [plain] {%
+  \debug{Poster titlebackground: \baposter@titlebackground}
+  \renewcommand{\baposterPosterDrawTitleBackground}[1]{
+      \csname baposter@titlebackground@\baposter@titlebackground\endcsname{##1}
+      }
+}{
+  \PackageWarning{baposter}{Unknown titlebackground `\baposter@titlebackground' (use
+      plain or none). If user is used, you also
+      have to define \titlebackground{...}.}
+  \renewcommand{\baposterPosterDrawTitleBackground}[1]{
+    \baposter@titlebackground@none{##1}
+    }
+}
+
+% footerbackground can be one of: plain, none
+\define@choicekey*+[ba]{poster}{footerbackground}%
+    [\baposter@footerbackground\baposter@footerbackgroundnr]%
+    {plain, none} [plain] {%
+  \debug{Poster footerbackground: \baposter@footerbackground}
+  \renewcommand{\baposterPosterDrawFooterBackground}[1]{
+      \csname baposter@footerbackground@\baposter@footerbackground\endcsname{##1}
+      }
+}{
+  \PackageWarning{baposter}{Unknown footerbackground `\baposter@footerbackground' (use
+      plain or none). If user is used, you also
+      have to define \footerbackground{...}.}
+  \renewcommand{\baposterPosterDrawFooterBackground}[1]{
+    \baposter@footerbackground@none{##1}
+    }
 }
 
 
@@ -477,10 +515,14 @@
   % Colours
   bgColorOne=baposter@silver,
   bgColorTwo=green,
+  titleColor=green,
+  footerColor=green,
   %
   colspacing=1em,
   headerheight=0.1\textheight,
   background=shadelr,
+  titlebackground=plain,
+  footerbackground=plain,
 }{}
 \setkeys[ba]{posterbox}{
   % Position
@@ -546,6 +588,36 @@
 \newcommand{\baposter@background@none}[2]{
   \debug{BAPOSTER: Using no background.}
 }
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Title background options and functions (one function for each possible value)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\baposter@titlebackground@plain}[1]{
+  \debug{BAPOSTER: Using plain title background.}
+  \begin{tikzpicture}[remember picture,overlay]%
+    \fill [fill=#1] (current page.north west) rectangle(\textwidth+\baposter@basemarginright,\textheight-\headerheight+1em+0.5);
+  \end{tikzpicture}%
+}
+\newcommand{\baposter@titlebackground@none}[1]{
+  \debug{BAPOSTER: Using no title background.}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Footer background options and functions (one function for each possible value)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\baposter@footerbackground@plain}[1]{
+  \debug{BAPOSTER: Using plain footer background.}
+  \begin{tikzpicture}[remember picture,overlay]%
+    \fill [fill=#1] (current page.south west) rectangle(\textwidth+\baposter@basemarginright, 0);
+  \end{tikzpicture}%
+}
+\newcommand{\baposter@footerbackground@none}[1]{
+  \debug{BAPOSTER: Using no title background.}
+}
+
+
 
 
 
@@ -766,7 +838,7 @@
 %%%   - headershape=rectangle,rounded,roundedleft,roundedright
 %%%                       Shape of the box-header region
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\newenvironment{poster}[5]{%
+\newenvironment{poster}[6]{%
   \thispagestyle{empty}% Suppress Page Number
   \debug{Poster Starts}%
   % This setkeys call parses all provided options and depending on the option
@@ -782,6 +854,8 @@
   % Parse Keys%
   \colorlet{bgColorOne}{\baposter@bgColorOne}
   \colorlet{bgColorTwo}{\baposter@bgColorTwo}
+  \colorlet{titleColor}{\baposter@titleColor}
+  \colorlet{footerColor}{\baposter@footerColor}
 %
   %% Boxes%
   \setlength{\headerheight}{\baposter@headerheight}%
@@ -945,9 +1019,14 @@
       \ifthenelse{\equal{\baposter@box@below}{notset} \and \equal{\baposter@box@aligned}{notset}}{%
       \path[shape=coordinate] (\boxstartx,\boxheight)                                                              coordinate(\baposter@box@name nw);%
       }{}%
-      \path[shape=coordinate] (\boxstartx+\boxwidth,0pt)                                                           coordinate(\baposter@box@name se);%
+      \ifthenelse{\equal{\baposter@footerbackground}{plain}}{%
+        \path[shape=coordinate] (\boxstartx+\boxwidth,\baposter@basemargin)                                         coordinate(\baposter@box@name se);%
+      }{
+        \path[shape=coordinate] (\boxstartx+\boxwidth,0)                                                            coordinate(\baposter@box@name se);%
+      }
       }{\ifthenelse{\not \equal{\baposter@box@bottomaligned}{notset}}{%
         \path[shape=coordinate] (\boxstartx+\boxwidth,0pt |- \baposter@box@bottomaligned se)                       coordinate(\baposter@box@name se);%
+      
       }{{\ifthenelse{\not \equal{\baposter@box@above}{notset}}{%
         %% Above = Node%
         \path[shape=coordinate] (\boxstartx+\boxwidth,0pt |- \baposter@box@above nw)  +(0pt,\baposter@@colspacing) coordinate(\baposter@box@name se);%
@@ -967,18 +1046,18 @@
     % Set coordinates relative to nw,se%
     \debug{Fixing Coordinates}%
     \path[shape=coordinate]%
-      (\baposter@box@name nw) +(0pt,-\baposter@box@@boxheaderheight)                coordinate(\baposter@box@name tnw)%
-      (\baposter@box@name nw |- \baposter@box@name se)   coordinate(\baposter@box@name sw)%
-      (\baposter@box@name se |- \baposter@box@name nw)   coordinate(\baposter@box@name ne)%
-      (\baposter@box@name ne) +(0pt,-\baposter@box@@boxheaderheight)                coordinate(\baposter@box@name tne)%
+      (\baposter@box@name nw) +(0pt,-\baposter@box@@boxheaderheight)    coordinate(\baposter@box@name tnw)%
+      (\baposter@box@name nw |- \baposter@box@name se)                  coordinate(\baposter@box@name sw)%
+      (\baposter@box@name se |- \baposter@box@name nw)                  coordinate(\baposter@box@name ne)%
+      (\baposter@box@name ne) +(0pt,-\baposter@box@@boxheaderheight)    coordinate(\baposter@box@name tne)%
 %
-      (\baposter@box@name nw)  +(-0.025em,0pt)           coordinate(\baposter@box@name outer nw)%
-      (\baposter@box@name tnw) +(-0.025em,0pt)           coordinate(\baposter@box@name outer tnw)%
-      (\baposter@box@name sw)  +(-0.025em,0pt)           coordinate(\baposter@box@name outer sw)%
+      (\baposter@box@name nw)  +(-0.025em,0pt)                          coordinate(\baposter@box@name outer nw)%
+      (\baposter@box@name tnw) +(-0.025em,0pt)                          coordinate(\baposter@box@name outer tnw)%
+      (\baposter@box@name sw)  +(-0.025em,0pt)                          coordinate(\baposter@box@name outer sw)%
 %
-      (\baposter@box@name ne)  +( 0.025em,0pt)           coordinate(\baposter@box@name outer ne)%
-      (\baposter@box@name tne) +( 0.025em,0pt)           coordinate(\baposter@box@name outer tne)%
-      (\baposter@box@name se)  +( 0.025em,0pt)           coordinate(\baposter@box@name outer se);%
+      (\baposter@box@name ne)  +( 0.025em,0pt)                          coordinate(\baposter@box@name outer ne)%
+      (\baposter@box@name tne) +( 0.025em,0pt)                          coordinate(\baposter@box@name outer tne)%
+      (\baposter@box@name se)  +( 0.025em,0pt)                          coordinate(\baposter@box@name outer se);%
 %
       %% Setting the bg colors of the box header
       \baposterHeaderSetShade{headerColorOne}{headerColorTwo}{borderColor}
@@ -1044,9 +1123,14 @@
 %
   %% Poster Background%
   \baposterPosterDrawBackground{bgColorOne}{bgColorTwo}%
+  %% Poster Title Background%
+  \baposterPosterDrawTitleBackground{titleColor}%
+    %% Poster Title Background%
+  \baposterPosterDrawFooterBackground{footerColor}%
   %% Poster header/title
-  \hspace{-1.5em}%
+  \hspace{-3.5em}%
   \begin{tikzpicture}[inner sep=0pt,outer sep=0pt,line width=0.05em]%
+  
     \useasboundingbox (0em,0em) rectangle(\textwidth,\textheight);%
     \path[shape=coordinate]%
       (0pt,\colheight) coordinate(north west) (\textwidth,\colheight) coordinate(north east)%
@@ -1082,8 +1166,34 @@
         \end{minipage}
       };%
     \else% Has no eye catcher
-      \draw (image.east) node(title)[anchor=west]  { {\begin{minipage}{\baposter@titleimage@textwidth}{\bfseries\Huge #3}\\{\Large #4}\end{minipage}} };%
+      \draw (image.east) node(title)[anchor=west]  {
+       {
+        \begin{minipage}{\baposter@titleimage@textwidth}{\bfseries\Huge #3}\\{\Large #4}\end{minipage}
+       } 
+       };%
+      \draw (0,0) node(title)[anchor=west]{
+       {
+       % \fbox{
+        \begin{minipage}[c]{\textwidth-2em}{
+          \vspace{\baposter@basemargin}
+          #6
+        }\end{minipage}
+       % }
+       } 
+       };
     \fi
+
+
+% \setlength{\baposter@basepaperwidth} {\baposter@fontscale\baposter@finalpaperwidth }
+% \setlength{\baposter@basepaperheight}{\baposter@fontscale\baposter@finalpaperheight}
+% \setlength{\baposter@basemargin}     {\baposter@fontscale\baposter@finalmargin}
+% \newlength{\baposter@basemarginright}
+% \setlength{\baposter@basemarginright}{\baposter@basemargin}
+% \addtolength{\baposter@basemarginright}{-\baposter@fontscale\baposter@movebody}
+% \newlength{\baposter@basemarginleft}
+% \setlength{\baposter@basemarginleft}{\baposter@basemargin}
+% \addtolength{\baposter@basemarginleft}{\baposter@fontscale\baposter@movebody}
+
   }% END poster begin
 % The body
   {% BEGIN poster end
